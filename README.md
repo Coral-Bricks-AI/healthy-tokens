@@ -78,10 +78,7 @@ python ./prober.py --scan-config="scan-config/coralbricks/main.toml" --tags="pub
          --max-concurrent=10 \
          --var coralbricks_api_key="cb_your_api_key"
 ```
-Or use the included Windows batch runner:
-```cmd
-run_coralbricks.bat
-```
+
 
 ---
 
@@ -139,9 +136,6 @@ When `--tags` is omitted, **all** probes in the loaded configuration tree are ex
 
 # Run only SSE streaming inference probes
 ./prober --scan-config="scan-config/coralbricks/main.toml" --tags="stream"
-
-# Forward --tags through the Windows batch runner
-.\run_coralbricks.bat --tags="smoke"
 ```
 
 **Built-in Tags in `scan-config/coralbricks/`**:
