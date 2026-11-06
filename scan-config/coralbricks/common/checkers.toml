@@ -1,0 +1,452 @@
+# Reusable declarative Checkers for CoralBricks API & Website surfaces
+
+# ---------------------------------------------------------------------------
+# HTTP Status Checkers
+# ---------------------------------------------------------------------------
+[[checkers]]
+name = "status_200"
+type = "http_status"
+equal = [200]
+
+[[checkers]]
+name = "status_400"
+type = "http_status"
+equal = [400]
+
+[[checkers]]
+name = "status_401"
+type = "http_status"
+equal = [401]
+
+[[checkers]]
+name = "status_404"
+type = "http_status"
+equal = [404]
+
+[[checkers]]
+name = "status_405"
+type = "http_status"
+equal = [405]
+
+[[checkers]]
+name = "status_2xx"
+type = "http_status"
+between = [200, 299]
+
+# ---------------------------------------------------------------------------
+# Response Time (Performance) Checkers — Calibrated Baseline + 200ms Buffer
+# ---------------------------------------------------------------------------
+[[checkers]]
+name = "latency_docs_400ms"
+type = "response_time"
+max_duration = ["400ms"]
+
+[[checkers]]
+name = "latency_api_800ms"
+type = "response_time"
+max_duration = ["800ms"]
+
+[[checkers]]
+name = "latency_models_quota_1000ms"
+type = "response_time"
+max_duration = ["1000ms"]
+
+[[checkers]]
+name = "latency_trust_1200ms"
+type = "response_time"
+max_duration = ["1200ms"]
+
+[[checkers]]
+name = "latency_llm_1500ms"
+type = "response_time"
+max_duration = ["1500ms"]
+
+[[checkers]]
+name = "latency_llm_2000ms"
+type = "response_time"
+max_duration = ["2000ms"]
+
+# ---------------------------------------------------------------------------
+# HTTP Header Checkers
+# ---------------------------------------------------------------------------
+[[checkers]]
+name = "header_content_json"
+type = "header"
+header = "content-type"
+contains = ["application/json"]
+
+[[checkers]]
+name = "header_content_sse"
+type = "header"
+header = "content-type"
+contains = ["text/event-stream"]
+
+[[checkers]]
+name = "header_request_id"
+type = "header"
+header = "x-request-id"
+regex = ["^req_[A-Za-z0-9_-]+"]
+
+[[checkers]]
+name = "header_legacy_pricing_plan"
+type = "header"
+header = "x-coral-pricing-plan"
+equal = ["legacy"]
+
+# ---------------------------------------------------------------------------
+# JSON Schema Checkers (General & Endpoint Response Structures)
+# ---------------------------------------------------------------------------
+[[checkers]]
+name = "public_models_schema"
+type = "json_schema"
+[checkers.schema]
+type = "object"
+required = ["object", "contract_version", "provider", "data"]
+[checkers.schema.properties.object]
+type = "string"
+const = "list"
+[checkers.schema.properties.contract_version]
+type = "string"
+const = "2.0"
+[checkers.schema.properties.provider]
+type = "object"
+required = ["id", "status_url", "request_id_header", "error_contract"]
+[checkers.schema.properties.provider.properties.id]
+type = "string"
+const = "coralbricks"
+[checkers.schema.properties.provider.properties.request_id_header]
+type = "string"
+const = "x-request-id"
+[checkers.schema.properties.provider.properties.error_contract]
+type = "object"
+required = ["rate_limit_status", "overload_status", "account_quota_error_codes"]
+[checkers.schema.properties.data]
+type = "array"
+minItems = 1
+[checkers.schema.properties.data.items]
+type = "object"
+required = [
+    "id",
+    "object",
+    "owned_by",
+    "type",
+    "context_length",
+    "max_output_tokens",
+    "endpoints",
+    "input_modalities",
+    "output_modalities",
+    "capabilities",
+    "pricing",
+    "lifecycle",
+    "reliability",
+]
+[checkers.schema.properties.data.items.properties.object]
+type = "string"
+const = "model"
+[checkers.schema.properties.data.items.properties.owned_by]
+type = "string"
+const = "coralbricks"
+[checkers.schema.properties.data.items.properties.context_length]
+type = "integer"
+minimum = 1024
+[checkers.schema.properties.data.items.properties.capabilities]
+type = "object"
+required = ["streaming", "tools", "structured_output", "reasoning", "prompt_caching"]
+[checkers.schema.properties.data.items.properties.pricing]
+type = "object"
+required = ["currency", "unit", "input", "output"]
+[checkers.schema.properties.data.items.properties.lifecycle]
+type = "object"
+required = ["status"]
+[checkers.schema.properties.data.items.properties.reliability]
+type = "object"
+required = ["first_token_timeout_seconds", "completion_timeout_seconds", "stream_idle_timeout_seconds"]
+
+[[checkers]]
+name = "authenticated_models_schema"
+type = "json_schema"
+[checkers.schema]
+type = "object"
+required = ["object", "data"]
+[checkers.schema.properties.object]
+type = "string"
+const = "list"
+[checkers.schema.properties.data]
+type = "array"
+minItems = 2
+[checkers.schema.properties.data.items]
+type = "object"
+required = [
+    "id",
+    "object",
+    "owned_by",
+    "context_length",
+    "pricing",
+    "supports_chat",
+    "supports_reasoning",
+    "supports_tools",
+]
+[checkers.schema.properties.data.items.properties.object]
+type = "string"
+const = "model"
+[checkers.schema.properties.data.items.properties.owned_by]
+type = "string"
+const = "coralbricks"
+[checkers.schema.properties.data.items.properties.pricing]
+type = "object"
+required = ["input_per_m", "output_per_m", "cached_input_per_m", "cache_write_per_m"]
+
+[[checkers]]
+name = "quota_schema"
+type = "json_schema"
+[checkers.schema]
+type = "object"
+required = ["object", "currency", "balance", "balance_cents", "pending_charge_cents"]
+[checkers.schema.properties.object]
+type = "string"
+const = "credits"
+[checkers.schema.properties.currency]
+type = "string"
+const = "USD"
+[checkers.schema.properties.balance]
+type = "number"
+[checkers.schema.properties.balance_cents]
+type = "integer"
+[checkers.schema.properties.pending_charge_cents]
+type = "integer"
+
+[[checkers]]
+name = "chat_completion_schema"
+type = "json_schema"
+[checkers.schema]
+type = "object"
+required = ["id", "created", "object", "model", "choices", "usage", "provider"]
+[checkers.schema.properties.object]
+type = "string"
+const = "chat.completion"
+[checkers.schema.properties.provider]
+type = "string"
+const = "coralbricks"
+[checkers.schema.properties.choices]
+type = "array"
+minItems = 1
+[checkers.schema.properties.choices.items]
+type = "object"
+required = ["index", "message", "finish_reason"]
+[checkers.schema.properties.choices.items.properties.message]
+type = "object"
+required = ["role"]
+[checkers.schema.properties.usage]
+type = "object"
+required = [
+    "prompt_tokens",
+    "completion_tokens",
+    "total_tokens",
+    "prompt_tokens_details",
+    "completion_tokens_details",
+    "cost",
+    "cost_details",
+]
+[checkers.schema.properties.usage.properties.cost]
+type = "number"
+minimum = 0
+[checkers.schema.properties.usage.properties.cost_details]
+type = "object"
+required = ["currency", "input", "cached_input", "cache_write", "output"]
+
+[[checkers]]
+name = "openai_responses_schema"
+type = "json_schema"
+[checkers.schema]
+type = "object"
+required = [
+    "id",
+    "object",
+    "created_at",
+    "status",
+    "model",
+    "output",
+    "usage",
+    "provider",
+    "store",
+    "background",
+]
+[checkers.schema.properties.object]
+type = "string"
+const = "response"
+[checkers.schema.properties.status]
+type = "string"
+const = "completed"
+[checkers.schema.properties.provider]
+type = "string"
+const = "coralbricks"
+[checkers.schema.properties.output]
+type = "array"
+minItems = 1
+[checkers.schema.properties.usage]
+type = "object"
+required = ["input_tokens", "output_tokens", "total_tokens", "cost", "cost_details"]
+
+[[checkers]]
+name = "anthropic_messages_schema"
+type = "json_schema"
+[checkers.schema]
+type = "object"
+required = ["id", "type", "role", "model", "content", "stop_reason", "usage"]
+[checkers.schema.properties.type]
+type = "string"
+const = "message"
+[checkers.schema.properties.role]
+type = "string"
+const = "assistant"
+[checkers.schema.properties.content]
+type = "array"
+minItems = 1
+[checkers.schema.properties.usage]
+type = "object"
+required = ["input_tokens", "output_tokens"]
+
+[[checkers]]
+name = "openai_error_schema"
+type = "json_schema"
+[checkers.schema]
+type = "object"
+required = ["error"]
+[checkers.schema.properties.error]
+type = "object"
+required = ["message", "type", "code"]
+[checkers.schema.properties.error.properties.message]
+type = "string"
+minLength = 1
+[checkers.schema.properties.error.properties.type]
+type = "string"
+minLength = 1
+[checkers.schema.properties.error.properties.code]
+type = ["string", "null"]
+
+[[checkers]]
+name = "anthropic_error_schema"
+type = "json_schema"
+[checkers.schema]
+type = "object"
+required = ["type", "error"]
+[checkers.schema.properties.type]
+type = "string"
+const = "error"
+[checkers.schema.properties.error]
+type = "object"
+required = ["type", "message"]
+[checkers.schema.properties.error.properties.type]
+type = "string"
+minLength = 1
+[checkers.schema.properties.error.properties.message]
+type = "string"
+minLength = 1
+
+# ---------------------------------------------------------------------------
+# JSON Path & LLM Semantic Checkers
+# ---------------------------------------------------------------------------
+[[checkers]]
+name = "usage_cost_present"
+type = "json_path"
+path = "usage.cost"
+must_have = true
+bigger_than = [-0.000001]
+
+[[checkers]]
+name = "usage_currency_usd"
+type = "json_path"
+path = "usage.cost_details.currency"
+equal = ["USD"]
+
+[[checkers]]
+name = "llm_text_says_ok"
+type = "llm_response"
+field = "assistant_text"
+contains = ["OK"]
+
+[[checkers]]
+name = "llm_text_non_empty"
+type = "llm_response"
+field = "assistant_text"
+must_have = true
+regex = ["\\S+"]
+
+[[checkers]]
+name = "llm_stream_completed"
+type = "llm_response"
+field = "stream_done"
+equal = [true]
+expect_stream_error = false
+
+[[checkers]]
+name = "llm_has_weather_tool_call"
+type = "llm_response"
+field = "tool_call_names"
+expect_tool_calls = true
+contains = ["get_weather"]
+
+# ---------------------------------------------------------------------------
+# Error Code Checkers
+# ---------------------------------------------------------------------------
+[[checkers]]
+name = "error_api_key_missing"
+type = "json_path"
+path = "error.code"
+equal = ["missing_api_key"]
+
+[[checkers]]
+name = "error_model_not_public"
+type = "json_path"
+path = "error.code"
+equal = ["model_not_public"]
+
+[[checkers]]
+name = "error_unsupported_value"
+type = "json_path"
+path = "error.code"
+equal = ["unsupported_value"]
+
+[[checkers]]
+name = "error_unsupported_parameter"
+type = "json_path"
+path = "error.code"
+equal = ["unsupported_parameter"]
+
+[[checkers]]
+name = "error_method_not_allowed"
+type = "json_path"
+path = "error.code"
+equal = ["method_not_allowed"]
+
+[[checkers]]
+name = "error_not_found"
+type = "json_path"
+path = "error.code"
+equal = ["not_found"]
+
+[[checkers]]
+name = "error_response_not_found"
+type = "json_path"
+path = "error.code"
+equal = ["response_not_found"]
+
+[[checkers]]
+name = "anthropic_error_envelope"
+type = "json_path"
+path = "error.type"
+equal = ["authentication_error"]
+
+# ---------------------------------------------------------------------------
+# Website & Docs Content Checkers
+# ---------------------------------------------------------------------------
+[[checkers]]
+name = "docs_markdown_content"
+type = "content"
+must_have = ["coralbricks", "https://inference.coralbricks.ai"]
+bigger_than = [100]
+
+[[checkers]]
+name = "non_empty_text_content"
+type = "content"
+bigger_than = [20]

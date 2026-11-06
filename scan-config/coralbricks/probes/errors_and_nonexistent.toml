@@ -1,0 +1,372 @@
+# Probes for CoralBricks Error Contracts, Non-Existent Routes (404/405), and Public Web Surfaces
+
+# ---------------------------------------------------------------------------
+# Unauthenticated Error Contracts (401)
+# ---------------------------------------------------------------------------
+[[probes]]
+name = "Chat Completions Missing Key (POST /v1/chat/completions -> 401)"
+tags = ["public", "errors", "smoke"]
+checkers = ["status_401", "latency_api_800ms", "header_content_json", "openai_error_schema", "error_api_key_missing"]
+[probes.fetcher]
+type = "openai_chat_request"
+url = "${base_url}/chat/completions"
+model = "${default_model}"
+messages = [{ role = "user", content = "hi" }]
+max_tokens = 4
+timeout = "${fast_timeout}"
+retries = 3
+
+[[probes]]
+name = "OpenAI Responses Missing Key (POST /v1/responses -> 401)"
+tags = ["public", "errors", "smoke"]
+checkers = ["status_401", "latency_api_800ms", "header_content_json", "openai_error_schema", "error_api_key_missing"]
+[probes.fetcher]
+type = "openai_responses_request"
+url = "${base_url}/responses"
+model = "${default_model}"
+input = "hi"
+max_output_tokens = 4
+timeout = "${fast_timeout}"
+retries = 3
+
+[[probes]]
+name = "Anthropic Messages Missing Key (POST /v1/messages -> 401)"
+tags = ["public", "errors", "smoke"]
+checkers = ["status_401", "latency_api_800ms", "header_content_json", "anthropic_error_schema", "anthropic_error_envelope"]
+[probes.fetcher]
+type = "anthropic_messages_request"
+url = "${base_url}/messages"
+model = "${default_model}"
+max_tokens = 4
+messages = [{ role = "user", content = "hi" }]
+timeout = "${fast_timeout}"
+retries = 3
+
+# ---------------------------------------------------------------------------
+# Authenticated Validation & Org Policy Error Contracts (400 / 404)
+# ---------------------------------------------------------------------------
+[[probes]]
+name = "Unknown Model Error (POST /v1/chat/completions model='nope' -> 404)"
+tags = ["auth", "errors"]
+checkers = ["status_404", "latency_api_800ms", "header_content_json", "openai_error_schema", "error_model_not_public"]
+[probes.fetcher]
+type = "openai_chat_request"
+url = "${base_url}/chat/completions"
+bearer_token = "${coralbricks_api_key}"
+model = "nope"
+messages = [{ role = "user", content = "hi" }]
+max_tokens = 4
+timeout = "${fast_timeout}"
+retries = 3
+
+[[probes]]
+name = "Invalid reasoning_effort Enum (POST /v1/chat/completions -> 400)"
+tags = ["auth", "errors"]
+checkers = ["status_400", "latency_api_800ms", "header_content_json", "openai_error_schema", "error_unsupported_value"]
+[probes.fetcher]
+type = "openai_chat_request"
+url = "${base_url}/chat/completions"
+bearer_token = "${coralbricks_api_key}"
+model = "${default_model}"
+messages = [{ role = "user", content = "hi" }]
+max_tokens = 4
+reasoning_effort = "invalid_effort_value"
+timeout = "${fast_timeout}"
+retries = 3
+
+[[probes]]
+name = "Responses Background Disabled for Org (POST /v1/responses background=true -> 400)"
+tags = ["auth", "errors", "responses"]
+checkers = [
+    "status_400",
+    "latency_api_800ms",
+    "header_content_json",
+    "openai_error_schema",
+    "error_unsupported_parameter",
+    { name = "param_is_background", type = "json_path", path = "error.param", equal = ["background"] },
+]
+[probes.fetcher]
+type = "openai_responses_request"
+url = "${base_url}/responses"
+bearer_token = "${coralbricks_api_key}"
+model = "${default_model}"
+input = "hi"
+max_output_tokens = 8
+background = true
+timeout = "${fast_timeout}"
+retries = 3
+
+[[probes]]
+name = "Responses previous_response_id Disabled for Org (POST /v1/responses -> 400)"
+tags = ["auth", "errors", "responses"]
+checkers = ["status_400", "latency_api_800ms", "header_content_json", "openai_error_schema"]
+[probes.fetcher]
+type = "openai_responses_request"
+url = "${base_url}/responses"
+bearer_token = "${coralbricks_api_key}"
+model = "${default_model}"
+input = "hi"
+max_output_tokens = 8
+previous_response_id = "resp_nonexistent123"
+timeout = "${fast_timeout}"
+retries = 3
+
+[[probes]]
+name = "Responses Fetch by ID Not Stored (GET /v1/responses/{id} -> 404)"
+tags = ["auth", "errors", "responses"]
+checkers = ["status_404", "latency_api_800ms", "header_content_json", "openai_error_schema", "error_response_not_found"]
+[probes.fetcher]
+type = "http_json"
+method = "GET"
+url = "${base_url}/responses/resp_00000000000000000000000000000000"
+bearer_token = "${coralbricks_api_key}"
+timeout = "${fast_timeout}"
+retries = 3
+
+# ---------------------------------------------------------------------------
+# Method Not Allowed (405) & Non-Existent Routes (404)
+# ---------------------------------------------------------------------------
+[[probes]]
+name = "GET on Responses Collection Not Allowed (GET /v1/responses -> 405)"
+tags = ["public", "errors", "smoke"]
+checkers = ["status_405", "latency_api_800ms", "header_content_json", "openai_error_schema", "error_method_not_allowed"]
+[probes.fetcher]
+type = "http_get"
+url = "${base_url}/responses"
+timeout = "${fast_timeout}"
+retries = 3
+
+[[probes]]
+name = "Non-Existent Route: /v1/embeddings (404)"
+tags = ["public", "nonexistent", "errors"]
+checkers = ["status_404", "latency_api_800ms", "header_content_json", "openai_error_schema", "error_not_found"]
+[probes.fetcher]
+type = "http_post"
+url = "${base_url}/embeddings"
+json_body = { model = "${default_model}", input = "hello" }
+timeout = "${fast_timeout}"
+retries = 3
+
+[[probes]]
+name = "Non-Existent Route: /v1/completions (404)"
+tags = ["public", "nonexistent", "errors"]
+checkers = ["status_404", "latency_api_800ms", "header_content_json", "openai_error_schema", "error_not_found"]
+[probes.fetcher]
+type = "http_post"
+url = "${base_url}/completions"
+json_body = { model = "${default_model}", prompt = "hello" }
+timeout = "${fast_timeout}"
+retries = 3
+
+[[probes]]
+name = "Non-Existent Route: /v1/credits (404)"
+tags = ["public", "nonexistent", "errors"]
+checkers = ["status_404", "latency_api_800ms", "header_content_json", "openai_error_schema", "error_not_found"]
+[probes.fetcher]
+type = "http_get"
+url = "${base_url}/credits"
+timeout = "${fast_timeout}"
+retries = 3
+
+[[probes]]
+name = "Non-Existent Route: /v1/usage (404)"
+tags = ["public", "nonexistent", "errors"]
+checkers = ["status_404", "latency_api_800ms", "header_content_json", "openai_error_schema", "error_not_found"]
+[probes.fetcher]
+type = "http_get"
+url = "${base_url}/usage"
+timeout = "${fast_timeout}"
+retries = 3
+
+[[probes]]
+name = "Non-Existent Route: /v1/files (404)"
+tags = ["public", "nonexistent", "errors"]
+checkers = ["status_404", "latency_api_800ms", "header_content_json", "openai_error_schema", "error_not_found"]
+[probes.fetcher]
+type = "http_get"
+url = "${base_url}/files"
+timeout = "${fast_timeout}"
+retries = 3
+
+[[probes]]
+name = "Non-Existent Route: /v1/batches (404)"
+tags = ["public", "nonexistent", "errors"]
+checkers = ["status_404", "latency_api_800ms", "header_content_json", "openai_error_schema", "error_not_found"]
+[probes.fetcher]
+type = "http_get"
+url = "${base_url}/batches"
+timeout = "${fast_timeout}"
+retries = 3
+
+[[probes]]
+name = "Non-Existent Route: /v1/audio/transcriptions (404)"
+tags = ["public", "nonexistent", "errors"]
+checkers = ["status_404", "latency_api_800ms", "header_content_json", "openai_error_schema", "error_not_found"]
+[probes.fetcher]
+type = "http_post"
+url = "${base_url}/audio/transcriptions"
+timeout = "${fast_timeout}"
+retries = 3
+
+[[probes]]
+name = "Non-Existent Route: /v1/images/generations (404)"
+tags = ["public", "nonexistent", "errors"]
+checkers = ["status_404", "latency_api_800ms", "header_content_json", "openai_error_schema", "error_not_found"]
+[probes.fetcher]
+type = "http_post"
+url = "${base_url}/images/generations"
+timeout = "${fast_timeout}"
+retries = 3
+
+[[probes]]
+name = "Non-Existent Route: /v1/status (404)"
+tags = ["public", "nonexistent", "errors"]
+checkers = ["status_404", "latency_api_800ms", "header_content_json", "openai_error_schema", "error_not_found"]
+[probes.fetcher]
+type = "http_get"
+url = "${base_url}/status"
+timeout = "${fast_timeout}"
+retries = 3
+
+[[probes]]
+name = "Non-Existent Route: /v1/me (404)"
+tags = ["public", "nonexistent", "errors"]
+checkers = ["status_404", "latency_api_800ms", "header_content_json", "openai_error_schema", "error_not_found"]
+[probes.fetcher]
+type = "http_get"
+url = "${base_url}/me"
+timeout = "${fast_timeout}"
+retries = 3
+
+[[probes]]
+name = "Non-Existent Route: /v1/account (404)"
+tags = ["public", "nonexistent", "errors"]
+checkers = ["status_404", "latency_api_800ms", "header_content_json", "openai_error_schema", "error_not_found"]
+[probes.fetcher]
+type = "http_get"
+url = "${base_url}/account"
+timeout = "${fast_timeout}"
+retries = 3
+
+[[probes]]
+name = "Non-Existent Route: /v1/billing (404)"
+tags = ["public", "nonexistent", "errors"]
+checkers = ["status_404", "latency_api_800ms", "header_content_json", "openai_error_schema", "error_not_found"]
+[probes.fetcher]
+type = "http_get"
+url = "${base_url}/billing"
+timeout = "${fast_timeout}"
+retries = 3
+
+[[probes]]
+name = "Non-Existent Route: /v1/keys (404)"
+tags = ["public", "nonexistent", "errors"]
+checkers = ["status_404", "latency_api_800ms", "header_content_json", "openai_error_schema", "error_not_found"]
+[probes.fetcher]
+type = "http_get"
+url = "${base_url}/keys"
+timeout = "${fast_timeout}"
+retries = 3
+
+[[probes]]
+name = "Non-Existent Route: /v1/rerank (404)"
+tags = ["public", "nonexistent", "errors"]
+checkers = ["status_404", "latency_api_800ms", "header_content_json", "openai_error_schema", "error_not_found"]
+[probes.fetcher]
+type = "http_post"
+url = "${base_url}/rerank"
+timeout = "${fast_timeout}"
+retries = 3
+
+[[probes]]
+name = "Non-Existent Route: /v1/tokenize (404)"
+tags = ["public", "nonexistent", "errors"]
+checkers = ["status_404", "latency_api_800ms", "header_content_json", "openai_error_schema", "error_not_found"]
+[probes.fetcher]
+type = "http_post"
+url = "${base_url}/tokenize"
+timeout = "${fast_timeout}"
+retries = 3
+
+[[probes]]
+name = "Non-Existent Route: /v1/fine_tuning/jobs (404)"
+tags = ["public", "nonexistent", "errors"]
+checkers = ["status_404", "latency_api_800ms", "header_content_json", "openai_error_schema", "error_not_found"]
+[probes.fetcher]
+type = "http_get"
+url = "${base_url}/fine_tuning/jobs"
+timeout = "${fast_timeout}"
+retries = 3
+
+[[probes]]
+name = "Non-Existent Route: /v1/audio/speech (404)"
+tags = ["public", "nonexistent", "errors"]
+checkers = ["status_404", "latency_api_800ms", "header_content_json", "openai_error_schema", "error_not_found"]
+[probes.fetcher]
+type = "http_post"
+url = "${base_url}/audio/speech"
+timeout = "${fast_timeout}"
+retries = 3
+
+[[probes]]
+name = "Non-Existent Route: /health (404)"
+tags = ["public", "nonexistent", "errors"]
+checkers = ["status_404", "latency_api_800ms", "header_content_json", "openai_error_schema", "error_not_found"]
+[probes.fetcher]
+type = "http_get"
+url = "${base_url}/health"
+timeout = "${fast_timeout}"
+retries = 3
+
+[[probes]]
+name = "Non-Existent Route: /metrics (404)"
+tags = ["public", "nonexistent", "errors"]
+checkers = ["status_404", "latency_api_800ms", "header_content_json", "openai_error_schema", "error_not_found"]
+[probes.fetcher]
+type = "http_get"
+url = "${base_url}/metrics"
+timeout = "${fast_timeout}"
+retries = 3
+
+[[probes]]
+name = "Non-Existent Route: /v1/responses/{id}/input_items (404)"
+tags = ["public", "nonexistent", "errors"]
+checkers = ["status_404", "latency_api_800ms", "header_content_json", "openai_error_schema", "error_not_found"]
+[probes.fetcher]
+type = "http_get"
+url = "${base_url}/responses/resp_123/input_items"
+timeout = "${fast_timeout}"
+retries = 3
+
+# ---------------------------------------------------------------------------
+# Non-API Public Web & Documentation Surfaces
+# ---------------------------------------------------------------------------
+[[probes]]
+name = "CoralBricks Raw Docs Markdown (GET https://www.coralbricks.ai/docs.md)"
+tags = ["public", "web", "docs"]
+checkers = ["status_200", "latency_docs_400ms", "docs_markdown_content"]
+[probes.fetcher]
+type = "http_get"
+url = "${website_url}/docs.md"
+timeout = "${fast_timeout}"
+retries = 3
+
+[[probes]]
+name = "CoralBricks llms.txt Index (GET https://www.coralbricks.ai/llms.txt)"
+tags = ["public", "web", "docs"]
+checkers = ["status_200", "latency_docs_400ms", "non_empty_text_content"]
+[probes.fetcher]
+type = "http_get"
+url = "${website_url}/llms.txt"
+timeout = "${fast_timeout}"
+retries = 3
+
+[[probes]]
+name = "CoralBricks Trust & Status Page (GET https://trust.coralbricks.ai)"
+tags = ["public", "web", "status"]
+checkers = ["status_200", "latency_trust_1200ms", "non_empty_text_content"]
+[probes.fetcher]
+type = "http_get"
+url = "${trust_url}/"
+timeout = "${fast_timeout}"
+retries = 3

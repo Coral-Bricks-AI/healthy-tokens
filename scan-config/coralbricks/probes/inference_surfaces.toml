@@ -1,0 +1,202 @@
+# Probes for CoralBricks Inference Surfaces:
+# 1. OpenAI Chat Completions (/v1/chat/completions) across catalogue models
+# 2. OpenAI Responses (/v1/responses)
+# 3. Anthropic Messages (/v1/messages)
+
+[[probes]]
+name = "Chat Completions: deepseek-v4.1-flash-fast (POST /v1/chat/completions)"
+tags = ["auth", "inference", "chat", "models", "smoke"]
+checkers = [
+    "status_200",
+    "latency_llm_1500ms",
+    "header_content_json",
+    "header_request_id",
+    "header_legacy_pricing_plan",
+    "chat_completion_schema",
+    "usage_cost_present",
+    "usage_currency_usd",
+    "llm_text_says_ok",
+    { name = "model_echoed", type = "llm_response", field = "model", equal = ["deepseek-v4.1-flash-fast"] },
+]
+[probes.fetcher]
+type = "openai_chat_request"
+url = "${base_url}/chat/completions"
+bearer_token = "${coralbricks_api_key}"
+model = "deepseek-v4.1-flash-fast"
+messages = [
+    { role = "system", content = "Reply concisely." },
+    { role = "user", content = "say OK" },
+]
+max_tokens = 8
+stream = false
+temperature = 0.0
+reasoning_effort = "none"
+timeout = "${default_timeout}"
+retries = 2
+
+[[probes]]
+name = "Chat Completions: deepseek-v4.1-flash (POST /v1/chat/completions)"
+tags = ["auth", "inference", "chat", "models"]
+checkers = [
+    "status_200",
+    "latency_llm_2000ms",
+    "header_content_json",
+    "header_request_id",
+    "header_legacy_pricing_plan",
+    "chat_completion_schema",
+    "usage_cost_present",
+    "usage_currency_usd",
+    "llm_text_says_ok",
+    { name = "model_echoed_flash", type = "llm_response", field = "model", equal = ["deepseek-v4.1-flash"] },
+]
+[probes.fetcher]
+type = "openai_chat_request"
+url = "${base_url}/chat/completions"
+bearer_token = "${coralbricks_api_key}"
+model = "deepseek-v4.1-flash"
+messages = [
+    { role = "system", content = "Reply concisely." },
+    { role = "user", content = "say OK" },
+]
+max_tokens = 8
+stream = false
+temperature = 0.0
+reasoning_effort = "none"
+timeout = "${default_timeout}"
+retries = 2
+
+[[probes]]
+name = "Chat Completions Tool Calling (POST /v1/chat/completions)"
+tags = ["auth", "inference", "chat", "tools"]
+checkers = [
+    "status_200",
+    "latency_llm_2000ms",
+    "header_content_json",
+    "header_legacy_pricing_plan",
+    "chat_completion_schema",
+    "llm_has_weather_tool_call",
+]
+[probes.fetcher]
+type = "openai_chat_request"
+url = "${base_url}/chat/completions"
+bearer_token = "${coralbricks_api_key}"
+model = "${default_model}"
+messages = [
+    { role = "user", content = "What is the weather in London? Call get_weather." },
+]
+max_tokens = 64
+stream = false
+reasoning_effort = "none"
+tool_choice = "auto"
+timeout = "${default_timeout}"
+retries = 2
+[[probes.fetcher.tools]]
+type = "function"
+[probes.fetcher.tools.function]
+name = "get_weather"
+description = "Get current weather for a city"
+[probes.fetcher.tools.function.parameters]
+type = "object"
+required = ["city"]
+[probes.fetcher.tools.function.parameters.properties.city]
+type = "string"
+
+[[probes]]
+name = "Chat Completions SSE Streaming (POST /v1/chat/completions stream=true)"
+tags = ["auth", "inference", "chat", "stream"]
+checkers = [
+    "status_200",
+    "latency_llm_1500ms",
+    "header_content_sse",
+    "header_legacy_pricing_plan",
+    "llm_stream_completed",
+    "llm_text_non_empty",
+]
+[probes.fetcher]
+type = "openai_chat_request"
+url = "${base_url}/chat/completions"
+bearer_token = "${coralbricks_api_key}"
+model = "${default_model}"
+messages = [
+    { role = "user", content = "say OK" },
+]
+max_tokens = 8
+stream = true
+reasoning_effort = "none"
+timeout = "${default_timeout}"
+retries = 2
+
+[[probes]]
+name = "OpenAI Responses Single-Shot (POST /v1/responses)"
+tags = ["auth", "inference", "responses", "smoke"]
+checkers = [
+    "status_200",
+    "latency_llm_1500ms",
+    "header_content_json",
+    "header_request_id",
+    "header_legacy_pricing_plan",
+    "openai_responses_schema",
+    "usage_cost_present",
+    "usage_currency_usd",
+    "llm_text_non_empty",
+]
+[probes.fetcher]
+type = "openai_responses_request"
+url = "${base_url}/responses"
+bearer_token = "${coralbricks_api_key}"
+model = "${default_model}"
+input = "name one colour"
+instructions = "Reply with a single word."
+max_output_tokens = 16
+reasoning = { effort = "none" }
+store = false
+timeout = "${default_timeout}"
+retries = 2
+
+[[probes]]
+name = "Anthropic Messages Single-Shot (POST /v1/messages)"
+tags = ["auth", "inference", "anthropic", "messages", "smoke"]
+checkers = [
+    "status_200",
+    "latency_llm_1500ms",
+    "header_content_json",
+    "header_request_id",
+    "header_legacy_pricing_plan",
+    "anthropic_messages_schema",
+    "llm_text_says_ok",
+]
+[probes.fetcher]
+type = "anthropic_messages_request"
+url = "${base_url}/messages"
+bearer_token = "${coralbricks_api_key}"
+model = "${default_model}"
+max_tokens = 8
+messages = [
+    { role = "user", content = "say OK" },
+]
+timeout = "${default_timeout}"
+retries = 2
+
+[[probes]]
+name = "Anthropic Messages SSE Streaming (POST /v1/messages stream=true)"
+tags = ["auth", "inference", "anthropic", "messages", "stream"]
+checkers = [
+    "status_200",
+    "latency_llm_1500ms",
+    "header_content_sse",
+    "header_legacy_pricing_plan",
+    "llm_stream_completed",
+    "llm_text_non_empty",
+]
+[probes.fetcher]
+type = "anthropic_messages_request"
+url = "${base_url}/messages"
+bearer_token = "${coralbricks_api_key}"
+model = "${default_model}"
+max_tokens = 8
+stream = true
+messages = [
+    { role = "user", content = "say OK" },
+]
+timeout = "${default_timeout}"
+retries = 2

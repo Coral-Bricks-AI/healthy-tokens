@@ -1,0 +1,76 @@
+# Probes for CoralBricks Models Catalogue (/v1/models) and Credit Balance (/v1/quota)
+
+[[probes]]
+name = "Anonymous Models Catalogue & v2.0 Schema (GET /v1/models)"
+tags = ["public", "models", "smoke"]
+checkers = [
+    "status_200",
+    "latency_models_quota_1000ms",
+    "header_content_json",
+    "header_request_id",
+    "public_models_schema",
+    { name = "has_public_deepseek_flash_fast", type = "json_path", path = "data.*.id", contains = ["coralbricks/deepseek-v4.1-flash-fast"] },
+    { name = "model_context_1m", type = "json_path", path = "data.0.context_length", equal = [1048576] },
+    { name = "model_active_lifecycle", type = "json_path", path = "data.0.lifecycle.status", equal = ["active"] },
+    { name = "model_input_modalities", type = "json_path", path = "data.0.input_modalities", contains = ["text", "image"] },
+]
+[probes.fetcher]
+type = "http_get"
+url = "${base_url}/models"
+timeout = "${fast_timeout}"
+retries = 3
+
+[[probes]]
+name = "Authenticated Models Catalogue & Legacy Pricing (GET /v1/models)"
+tags = ["auth", "models", "smoke"]
+checkers = [
+    "status_200",
+    "latency_models_quota_1000ms",
+    "header_content_json",
+    "header_request_id",
+    "authenticated_models_schema",
+    { name = "has_both_deepseek_models", type = "json_path", path = "data.*.id", contains = ["deepseek-v4.1-flash-fast", "deepseek-v4.1-flash"] },
+    { name = "supports_reasoning_efforts", type = "json_path", path = "data.0.reasoning.supported_efforts", contains = ["low", "high", "max"] },
+]
+[probes.fetcher]
+type = "http_json"
+method = "GET"
+url = "${base_url}/models"
+bearer_token = "${coralbricks_api_key}"
+timeout = "${fast_timeout}"
+retries = 3
+
+[[probes]]
+name = "Authenticated Credit Balance (GET /v1/quota)"
+tags = ["auth", "quota", "smoke"]
+checkers = [
+    "status_200",
+    "latency_models_quota_1000ms",
+    "header_content_json",
+    "header_request_id",
+    "quota_schema",
+    { name = "balance_non_negative", type = "json_path", path = "balance", bigger_than = [-0.01] },
+]
+[probes.fetcher]
+type = "http_json"
+method = "GET"
+url = "${base_url}/quota"
+bearer_token = "${coralbricks_api_key}"
+timeout = "${fast_timeout}"
+retries = 3
+
+[[probes]]
+name = "Anonymous Quota Request Rejected (GET /v1/quota -> 401)"
+tags = ["public", "quota", "errors", "smoke"]
+checkers = [
+    "status_401",
+    "latency_api_800ms",
+    "header_content_json",
+    "openai_error_schema",
+    "error_api_key_missing",
+]
+[probes.fetcher]
+type = "http_get"
+url = "${base_url}/quota"
+timeout = "${fast_timeout}"
+retries = 3

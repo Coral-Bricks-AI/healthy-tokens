@@ -1,0 +1,14 @@
+# CoralBricks Master Scan Configuration
+# Usage:
+#   Public/unauthenticated probes only:
+#     ./prober --scan-config="scan-config/coralbricks/main.toml" --tags="public"
+#   Full suite (with API key in CORALBRICKS_API_KEY or --var coralbricks_api_key="cb_..."):
+#     ./prober --scan-config="scan-config/coralbricks/main.toml" --max-concurrent=10
+
+imports = [
+    "common/variables.toml",
+    "common/checkers.toml",
+    "probes/models_and_quota.toml",
+    "probes/inference_surfaces.toml",
+    "probes/errors_and_nonexistent.toml",
+]

@@ -1,0 +1,13 @@
+# Central variables for CoralBricks API & Website Prober scan configs
+# Override via CLI: ./prober --scan-config="scan-config/coralbricks/main.toml" --var coralbricks_api_key="cb_..."
+# Or via environment variable: CORALBRICKS_API_KEY="cb_..."
+
+[variables]
+base_url = "https://inference.coralbricks.ai/v1"
+website_url = "https://www.coralbricks.ai"
+trust_url = "https://trust.coralbricks.ai"
+default_model = "deepseek-v4.1-flash-fast"
+coralbricks_api_key = "${CORALBRICKS_API_KEY:-}"
+default_timeout = "15s"
+fast_timeout = "10s"
+default_retries = 2
